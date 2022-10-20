@@ -167,23 +167,42 @@ class FbSentenceProcessor:
     def get_head_span(self, head_token_offset_start, head_token_offset_end):
 
         pred_head = self.current_sentence[head_token_offset_start:head_token_offset_end]
-        head_token = self.current_doc.char_span(head_token_offset_start, head_token_offset_end)
-        if head_token is None:
-            head_token = self.current_doc.char_span(head_token_offset_start, head_token_offset_end + 1)
-        head_token = head_token[0]
+        fb_head_token = self.current_doc.char_span(head_token_offset_start, head_token_offset_end,
+                                                   alignment_mode='expand')[0]
 
-        # print('stop here')
+        if fb_head_token.dep_ == 'ROOT':
+            syntactic_head_token = fb_head_token
+        elif fb_head_token.pos_ in ['PRON', 'PROPN', 'NOUN', 'VERB', 'AUX', 'NUM']:
+            syntactic_head_token = fb_head_token.head
+        else:
+            syntactic_head_token = None
+            ancestors = list(fb_head_token.ancestors)
+            for token in ancestors:
+                if token.pos_ in ['PRON', 'PROPN', 'NOUN', 'VERB', 'AUX', 'NUM']:
+                    syntactic_head_token = token
+                    break
 
-        if head_token.text != head_token.head.text:
-            head_token = head_token.head
+        ancestors = list(syntactic_head_token.ancestors)
+        children = list(syntactic_head_token.children)
+        children_text = [child.text for child in children]
+        one_ancestor_child = False
+        right_edge = None
+        if len(ancestors) == 1 and len(children) == 1:
+            one_ancestor_child = True
+            right_edge = syntactic_head_token.right_edge.idx + len(syntactic_head_token.right_edge.text)
+            syntactic_head_token = syntactic_head_token.head
+        elif ',' in children_text and children_text.index(',') > len(children_text) // 2:
+            children = children[:children_text.index(',') + 1]
 
-        span_start = min(child.idx for child in head_token.children)
+        # if children[-1].pos_ == 'PUNCT':
+        #     children = children[:-1]
+        span_start = syntactic_head_token.left_edge.idx
+        if one_ancestor_child:
+            span_end = right_edge
+        else:
+            span_end = children[-1].idx + len(children[-1].text)
 
-        span_end_token = [child for child in head_token.children if child.idx == \
-                          max(child.idx for child in head_token.children if child.dep_ != 'punct')][0]
-        span_end = span_end_token.idx + len(span_end_token.text)
-
-        return (span_start, span_end)
+        return span_start, span_end
 
     def catalog_attitude(self, global_sentence_id, target_head, target_offset_start,
                          target_offset_end, attitude_source_id, fact_value):

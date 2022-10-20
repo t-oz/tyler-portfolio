@@ -8,8 +8,6 @@ from progress.bar import Bar
 from time import time
 
 
-
-
 class FB2Master:
     # static constants to index into the raw factbank dataset
 
@@ -116,6 +114,7 @@ class FB2Master:
         sentences_sql_return = self.fb_cur.execute(self.fb_sentences_query).fetchall()
         sp = FbSentenceProcessor(sentences_sql_return, self.initial_offsets, self.rel_source_texts,
                                  self.source_offsets, self.target_offsets, self.targets, self.fact_values)
+
         sp.go()
 
         final_attitudes = []
@@ -198,7 +197,6 @@ class FB2Master:
         self.close()
 
 
-
 if __name__ == "__main__":
     print("fb2master.py version 3.0\n\n")
     START_TIME = time()
@@ -206,5 +204,5 @@ if __name__ == "__main__":
     test.generate_database()
     print('\n\nDone.')
     run_time = time() - START_TIME
-    print("Runtime:", round(run_time % 60, 3), 'sec')
+    print("Runtime:", round(run_time, 3), 'sec')
 
