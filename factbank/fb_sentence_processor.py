@@ -1,6 +1,7 @@
 from progress.bar import Bar
 import spacy
 
+
 class FbSentenceProcessor:
 
     FILE = 0
@@ -166,41 +167,32 @@ class FbSentenceProcessor:
 
     def get_head_span(self, head_token_offset_start, head_token_offset_end):
 
-        pred_head = self.current_sentence[head_token_offset_start:head_token_offset_end]
         fb_head_token = self.current_doc.char_span(head_token_offset_start, head_token_offset_end,
                                                    alignment_mode='expand')[0]
 
         if fb_head_token.dep_ == 'ROOT':
             syntactic_head_token = fb_head_token
-        elif fb_head_token.pos_ in ['PRON', 'PROPN', 'NOUN', 'VERB', 'AUX', 'NUM']:
-            syntactic_head_token = fb_head_token.head
         else:
             syntactic_head_token = None
             ancestors = list(fb_head_token.ancestors)
-            for token in ancestors:
-                if token.pos_ in ['PRON', 'PROPN', 'NOUN', 'VERB', 'AUX', 'NUM']:
-                    syntactic_head_token = token
-                    break
+            ancestors.insert(0, fb_head_token)
 
-        ancestors = list(syntactic_head_token.ancestors)
-        children = list(syntactic_head_token.children)
-        children_text = [child.text for child in children]
-        one_ancestor_child = False
-        right_edge = None
-        if len(ancestors) == 1 and len(children) == 1:
-            one_ancestor_child = True
-            right_edge = syntactic_head_token.right_edge.idx + len(syntactic_head_token.right_edge.text)
-            syntactic_head_token = syntactic_head_token.head
-        elif ',' in children_text and children_text.index(',') > len(children_text) // 2:
-            children = children[:children_text.index(',') + 1]
+            if len(ancestors) == 1:
+                syntactic_head_token = ancestors[0]
+            else:
+                for token in ancestors:
+                    if token.pos_ in ['PRON', 'PROPN', 'NOUN', 'VERB', 'AUX']:
+                        syntactic_head_token = token
+                        break
 
-        # if children[-1].pos_ == 'PUNCT':
-        #     children = children[:-1]
+                if syntactic_head_token is None:
+                    for token in ancestors:
+                        if token.pos_ == 'NUM':
+                            syntactic_head_token = token
+                            break
+
         span_start = syntactic_head_token.left_edge.idx
-        if one_ancestor_child:
-            span_end = right_edge
-        else:
-            span_end = children[-1].idx + len(children[-1].text)
+        span_end = syntactic_head_token.right_edge.idx + len(syntactic_head_token.right_edge.text)
 
         return span_start, span_end
 
